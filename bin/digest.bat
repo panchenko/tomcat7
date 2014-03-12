@@ -17,8 +17,6 @@ rem limitations under the License.
 if "%OS%" == "Windows_NT" setlocal
 rem ---------------------------------------------------------------------------
 rem Script to digest password using the algorithm specified
-rem
-rem $Id: digest.bat 1137559 2011-06-20 09:27:30Z rjung $
 rem ---------------------------------------------------------------------------
 
 rem Guess CATALINA_HOME if not defined
