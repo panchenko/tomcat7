@@ -82,6 +82,10 @@
 #                   -agentlib:jdwp=transport=$JPDA_TRANSPORT,
 #                       address=$JPDA_ADDRESS,server=y,suspend=$JPDA_SUSPEND
 #
+#   JSSE_OPTS       (Optional) Java runtime options used to control the TLS
+#                   implementation when JSSE is used. Default is:
+#                   "-Djdk.tls.ephemeralDHKeySize=2048"
+#
 #   CATALINA_PID    (Optional) Path of the file which should contains the pid
 #                   of the catalina startup java process, when start (fork) is
 #                   used
@@ -215,6 +219,11 @@ if $cygwin; then
   JAVA_ENDORSED_DIRS=`cygpath --path --windows "$JAVA_ENDORSED_DIRS"`
 fi
 
+if [ -z "$JSSE_OPTS" ] ; then
+  JSSE_OPTS="-Djdk.tls.ephemeralDHKeySize=2048"
+fi
+JAVA_OPTS="$JAVA_OPTS $JSSE_OPTS"
+
 # Set juli LogManager config file if it is present and an override has not been issued
 if [ -z "$LOGGING_CONFIG" ]; then
   if [ -r "$CATALINA_BASE"/conf/logging.properties ]; then
@@ -264,7 +273,7 @@ if [ "$1" = "jpda" ] ; then
   if [ -z "$JPDA_OPTS" ]; then
     JPDA_OPTS="-agentlib:jdwp=transport=$JPDA_TRANSPORT,address=$JPDA_ADDRESS,server=y,suspend=$JPDA_SUSPEND"
   fi
-  CATALINA_OPTS="$CATALINA_OPTS $JPDA_OPTS"
+  CATALINA_OPTS="$JPDA_OPTS $CATALINA_OPTS"
   shift
 fi
 
@@ -335,6 +344,8 @@ elif [ "$1" = "start" ] ; then
           ps -p $PID >/dev/null 2>&1
           if [ $? -eq 0 ] ; then
             echo "Tomcat appears to still be running with PID $PID. Start aborted."
+            echo "If the following process is not a Tomcat process, remove the PID file and try again:"
+            ps -f -p $PID
             exit 1
           else
             echo "Removing/clearing stale PID file."
@@ -471,10 +482,12 @@ elif [ "$1" = "stop" ] ; then
           sleep 1
         fi
         if [ $SLEEP -eq 0 ]; then
+          echo "Tomcat did not stop in time."
           if [ $FORCE -eq 0 ]; then
-            echo "Tomcat did not stop in time. PID file was not removed. To aid diagnostics a thread dump has been written to standard out."
-            kill -3 `cat "$CATALINA_PID"`
+            echo "PID file was not removed."
           fi
+          echo "To aid diagnostics a thread dump has been written to standard out."
+          kill -3 `cat "$CATALINA_PID"`
         fi
         SLEEP=`expr $SLEEP - 1 `
       done
@@ -501,8 +514,6 @@ elif [ "$1" = "stop" ] ; then
                         echo "The PID file could not be removed."
                     fi
                 fi
-                # Set this to zero else a warning will be issued about the process still running
-                KILL_SLEEP_INTERVAL=0
                 echo "The Tomcat process has been killed."
                 break
             fi
@@ -511,7 +522,7 @@ elif [ "$1" = "stop" ] ; then
             fi
             KILL_SLEEP_INTERVAL=`expr $KILL_SLEEP_INTERVAL - 1 `
         done
-        if [ $KILL_SLEEP_INTERVAL -gt 0 ]; then
+        if [ $KILL_SLEEP_INTERVAL -lt 0 ]; then
             echo "Tomcat has not been killed completely yet. The process might be waiting on some system call or might be UNINTERRUPTIBLE."
         fi
       fi
