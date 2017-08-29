@@ -1,5 +1,5 @@
 #!/bin/sh
-CATALINA_OPTS="-Xmx1024m -XX:MaxPermSize=256m"
+CATALINA_OPTS="-Xmx1024m"
 if (echo "$_" | grep -q startup\\\|shutdown); then
   CATALINA_PID=$CATALINA_BASE/work/tomcat.pid
 fi
